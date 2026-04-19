@@ -1,0 +1,19 @@
+[project]
+name = "research-workspace"
+version = "0.1.0"
+description = "Research workspace for experiments"
+requires-python = ">=3.10"
+dependencies = [
+    "pypdf",
+    "requests",
+    "arxiv",
+    "datasets",
+    "transformers",
+    "transformer-lens>=3.0.0",
+    "torch>=2.11.0",
+    "matplotlib>=3.10.8",
+    "pandas>=2.3.3",
+    "numpy>=2.2.6",
+    "seaborn>=0.13.2",
+]
+

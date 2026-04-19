@@ -1,0 +1,11 @@
+\section{Related Work}
+\label{sec:related_work}
+
+\para{Induction Heads and ICL}
+The identification of \inductionheads as the primary drivers of in-context learning (\icl) was a landmark discovery in mechanistic interpretability \cite{olsson2022context}. These heads use a two-layer attention mechanism to detect and copy patterns of the form $[A][B] \dots [A]$. \citet{edelman2024evolution} further characterized the evolution of these heads, showing that models learn statistical bigrams before forming these more complex circuits. Our work builds on this foundation but focuses on the \textit{failure mode} where these heads are over-active.
+
+\para{Repetition Curse and Toxicity}
+The "repetition curse" refers to the tendency of language models to enter infinite loops of repetitive text. \citet{wang2025induction} introduced the concept of "induction head toxicity," arguing that over-activation of these heads mechanistically explains this phenomenon. Similarly, \citet{halawi2023overthinking} found that "false induction heads" can attend to and copy incorrect information from demonstrations. Our research complements these findings by investigating \leakage in a specifically non-repetitive task where the model is explicitly told to be random.
+
+\para{Controlling Attention Mechanisms}
+Recent efforts have explored methods to mitigate repetitive failures by controlling specific neurons or heads. This includes identifying "repetition neurons" and developing regularization techniques to balance \icl capabilities with generation quality. Our findings suggest that targeting specific induction heads (like L5H1 in \gpttwo) could be an effective strategy for "detoxifying" models without completely sacrificing their ability to learn from context.

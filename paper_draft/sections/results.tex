@@ -1,0 +1,43 @@
+\section{Results}
+\label{sec:results}
+
+\subsection{Pattern Leakage and Group Ablation}
+Our primary experiment demonstrates that \gpttwo exhibits significant pattern \leakage in the \taskname task. With the pattern `42 elephant`, the base model assigns a probability of $0.0778$ to the token `elephant`. Given that the \gpttwo vocabulary size is 50,257, a uniform random baseline would assign a probability of approximately $1.99 \times 10^{-5}$. Thus, the \leakage effect is over 3800$\times$ stronger than random chance.
+
+As shown in \cref{tab:group_ablation}, zero-ablating the top 5 \inductionheads drastically reduces this \leakage. The probability of the pattern token drops to $0.0030$, representing a $96.1\%$ reduction in \leakage. This confirms that the identified induction heads are the primary causal drivers of this unintended behavior.
+
+\begin{table}[h]
+\centering
+\caption{Effect of Group Ablation (Top 5 Induction Heads) on Pattern Leakage. Best results (lowest \leakage) in \textbf{bold}.}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Configuration} & \textbf{$P(\text{elephant})$} & \textbf{Reduction (\%)} & \textbf{Entropy (bits)} \\
+\midrule
+Base Model & 0.0778 & -- & 4.12 \\
+Ablated (L5H1, L5H5, L7H10, L7H2, L6H9) & \textbf{0.0030} & \textbf{96.1\%} & 3.24 \\
+\bottomrule
+\end{tabular}
+\label{tab:group_ablation}
+\end{table}
+
+Interestingly, we observe that ablating the induction heads \textit{decreases} the overall output entropy from 4.12 to 3.24 bits. This suggests that without the "pull" of the induction heads toward the pattern token, the model becomes more certain about other likely (though still non-random) tokens, such as spaces or common punctuation, which were previously being interfered with by the induction signal.
+
+\subsection{Single Head Contributions}
+To understand the relative importance of individual heads, we perform single-head ablations. The results, summarized in \cref{tab:single_head}, reveal that head \textbf{L5H1} is the dominant contributor to \leakage. Ablating only L5H1 reduces the probability of the pattern token by 68.4\%, while other heads like L6H9 contribute significantly less (10.2\%).
+
+\begin{table}[h]
+\centering
+\caption{Contribution of Individual Induction Heads to Pattern Leakage.}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Head Ablated} & \textbf{Base $P_{\text{leak}}$} & \textbf{Ablated $P_{\text{leak}}$} & \textbf{Reduction (\%)} \\
+\midrule
+L5H1 & 0.0778 & 0.0246 & \textbf{68.4\%} \\
+L5H5 & 0.0778 & 0.0556 & 28.5\% \\
+L6H9 & 0.0778 & 0.0698 & 10.2\% \\
+\bottomrule
+\end{tabular}
+\label{tab:single_head}
+\end{table}
+
+When L5H1 is ablated, we observe the model's top predictions shift from `elephant` to tokens like `43` (local arithmetic) or `42` (bigram repetition), showing that while induction-driven \leakage is suppressed, other lower-level statistical mechanisms (like those identified by \citet{edelman2024evolution}) remain active.

@@ -1,0 +1,30 @@
+\section{Methodology}
+\label{sec:method}
+
+We use \gpttwo (124M parameters) as our primary model, interfaced through the \tlens library. This model is chosen for its well-mapped attention circuitry and established set of \inductionheads \cite{olsson2022context}.
+
+\subsection{Task Design: \taskname}
+To measure unintended \leakage, we design a synthetic prompt structure that creates a strong induction signal followed by a request for a context-independent output. The prompt consists of:
+\begin{enumerate}
+    \item A pattern `[A] [B]` repeated $N$ times (e.g., `42 elephant`).
+    \item A final instance of the trigger `[A]`.
+    \item An explicit instruction to generate a random word: "The sequence is [pattern]. The next completely random and unrelated word is:".
+\end{enumerate}
+In this setup, a perfect stochastic model should assign a uniform probability to all tokens in the vocabulary (or at least avoid the pattern token `[B]`). However, if \inductionheads are active, they will "pull" the model toward predicting `[B]`.
+
+\subsection{Head Identification}
+We identify \inductionheads using the standard induction score metric, which measures how much a head increases the logit of token $B$ given the sequence $[A][B] \dots [A]$. Based on scores consistent with prior literature \cite{olsson2022context}, we focus on the top 5 heads: L5H1, L5H5, L7H10, L7H2, and L6H9.
+
+\subsection{Mechanistic Intervention}
+To test the causal role of these heads, we use \textit{zero-ablation}. For a set of heads $\gH$, we set their attention pattern outputs to zero during the forward pass:
+\begin{equation}
+    \text{Output}_h = 0, \quad \forall h \in \gH
+\end{equation}
+We measure the impact of both group ablation (all top 5 heads) and single-head ablation on the probability of the pattern token and the overall entropy of the output distribution.
+
+\subsection{Metrics}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Leakage Probability ($P_{\text{leak}}$)}: The probability assigned by the model to the pattern-completing token $B$.
+    \item \textbf{Reduction Score}: The percentage decrease in $P_{\text{leak}}$ after ablation.
+    \item \textbf{Output Entropy ($H$)}: Measured as $H = -\sum p_i \log p_i$, used to quantify the "peakedness" or randomness of the model's prediction.
+\end{itemize}

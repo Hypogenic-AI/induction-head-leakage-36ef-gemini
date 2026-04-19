@@ -1,0 +1,16 @@
+\section{Discussion}
+\label{sec:discussion}
+
+Our results provide causal evidence that \inductionheads, while essential for \icl, are also significant drivers of unintended pattern \leakage. This findings has several implications for our understanding of transformer behavior.
+
+\para{The Price of Pattern Sensitivity}
+The same mechanisms that allow a model to quickly adapt to new information in the context—the "copying" rule of induction heads—also make it difficult for the model to "turn off" that sensitivity when it is irrelevant. This suggests a fundamental trade-off: a model that is better at in-context learning may inherently be more prone to the repetition curse and pattern \leakage.
+
+\para{Induction Head Toxicity}
+Our identification of L5H1 as a primary driver of \leakage in \gpttwo supports the "toxicity" hypothesis \cite{wang2025induction}. It suggests that a small number of heads may be disproportionately responsible for problematic repetitive behaviors. Targeting these specific heads for regularization or "detoxification" during training could potentially improve generation quality without destroying the model's overall \icl capabilities.
+
+\para{Entropy and Model Confidence}
+The decrease in entropy following ablation was initially surprising, as one might expect removing a "distractor" to make the model more uncertain. However, it appears that the induction signal acts as a strong, albeit context-inappropriate, source of confidence. When this signal is removed, the model reverts to more "natural" preferences (like spaces or frequent tokens), which it is actually more certain about in the absence of the induction interference.
+
+\para{Limitations}
+This study was limited to \gpttwo. Larger models may have more complex "balancing" mechanisms, such as anti-induction heads, which might mitigate these effects. Furthermore, our \taskname task used synthetic patterns; natural language \leakage may be more subtle and involve semantic rather than literal token copying. Future work should investigate these phenomena in larger-scale models and more diverse contexts.

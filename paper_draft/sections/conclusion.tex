@@ -1,0 +1,6 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+In this work, we investigated the causal role of \inductionheads in driving unintended pattern \leakage in language models. Using \gpttwo and a novel \taskname task, we demonstrated that induction heads assign disproportionately high probability to pattern-completing tokens, even when the model is explicitly instructed to generate stochastic outputs. Mechanistic intervention via zero-ablation revealed that these heads are the primary causal drivers of this effect, with a small subset of heads (notably L5H1) contributing the majority of the \leakage.
+
+Our findings highlight a critical trade-off between the sensitivity required for in-context learning and the control needed for context-independent generation. As LLMs are increasingly used in tasks requiring stochasticity and precise following of instructions that contradict local patterns, understanding and potentially "detoxifying" these circuits will be essential for building more reliable and controllable AI systems. Future research should focus on developing IH-aware training objectives that can suppress \leakage without sacrificing the foundational capabilities provided by induction heads.

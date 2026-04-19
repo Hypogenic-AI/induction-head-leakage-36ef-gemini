@@ -1,0 +1,459 @@
+You are an academic paper writer. Generate a complete NEURIPS style paper
+based on the experiment results provided.
+
+════════════════════════════════════════════════════════════════════════════════
+                         IMPORTANT: BEFORE YOU START
+════════════════════════════════════════════════════════════════════════════════
+
+Before writing any content, you MUST complete these steps:
+
+1. READ THE SKILL: Review the paper-writer skill at .gemini/skills/paper-writer/SKILL.md
+2. READ THE STYLE GUIDE: Study templates/paper_writing/lab_style_guide.md carefully
+3. REVIEW EXAMPLES: Browse paper_examples/ for formatting and language patterns:
+   - Look at sections/1.introduction.tex for language style
+   - Look at tables/*.tex for table formatting
+   - Look at commands/*.tex for macro usage
+4. VERIFY COMMAND TEMPLATES: Command templates (math.tex, general.tex, macros.tex) are pre-copied to paper_draft/commands/
+
+CRITICAL: Reference example papers for FORMATTING and LANGUAGE STYLE only.
+Do NOT copy content, phrasing, or narrative structure from the example papers.
+The examples are in a different research domain - focus only on presentation style.
+
+════════════════════════════════════════════════════════════════════════════════
+                            EXPERIMENT REPORT
+════════════════════════════════════════════════════════════════════════════════
+
+# REPORT: Are Induction Heads a Large Source of Leakage?
+
+## 1. Executive Summary
+- **Research Question**: Do induction heads in language models cause unintended leakage of patterned information, even when instructed to generate random outputs?
+- **Key Finding**: Yes, induction heads are a major driver of unintended pattern leakage. In GPT-2 Small, we found that induction heads (specifically L5H1 and L5H5) can cause a 7-8% probability of copying a pattern token even when the model is explicitly told to generate a &#34;completely random and unrelated word.&#34; Ablating the top 5 induction heads reduces this leakage by over 90%.
+- **Practical Implications**: This mechanistic explanation for &#34;over-patterning&#34; suggests that models&#39; struggle with randomness and their tendency for repetitive loops (the &#34;repetition curse&#34;) is deeply tied to the same mechanism that enables in-context learning (ICL). Controlling or &#34;detoxifying&#34; specific induction heads could improve model behavior in stochastic tasks.
+
+## 2. Research Question &amp; Motivation
+Induction heads are the primary mechanism for in-context learning, allowing models to implement a `[A][B] ... [A] -&gt; [B]` copying rule. While this is beneficial for following demonstrations, we hypothesized that these heads might be &#34;too active,&#34; leading to leakage of patterns from the context even when copying is inappropriate (e.g., in a random generation task). This could explain why LLMs struggle to be truly stochastic.
+
+## 3. Methodology
+- **Model**: GPT-2 Small (124M parameters) via TransformerLens.
+- **Task**: &#34;Random Interference&#34; task. We presented a pattern `[A] [B]` repeated $N$ times, followed by a request for a &#34;completely random and unrelated word.&#34;
+- **Baseline**: The base model&#39;s probability of generating token `[B]` given `[A]` in the random context.
+- **Ablation**: Zero-ablating the top induction heads (identified via induction scores) and measuring the change in the probability of token `[B]`.
+- **Top Induction Heads**: L5H1, L5H5, L7H10, L7H2, L6H9 (consistent with Olsson et al., 2022).
+
+## 4. Results
+### 4.1 Pattern Leakage
+In a sample prompt where the pattern was `42 elephant` and the model was asked for a random word:
+- **Base Model Prob(elephant)**: 0.0778 (approx. 3800x higher than uniform random probability).
+- **Ablated Model Prob(elephant)**: 0.0030 (over 95% reduction).
+
+The model moved from predicting `elephant` (induction) to predicting `43` or `42` (unigram/bigram or local arithmetic), showing that the &#34;leakage&#34; was specifically driven by the induction heads.
+
+### 4.2 Single Head Contribution
+Ablating individual heads revealed that **L5H1** is the primary driver of this leakage:
+| Head | Base Prob | Ablated Prob | Reduction |
+|------|-----------|--------------|-----------|
+| L5H1 | 0.0778    | 0.0246       | 68.4%     |
+| L5H5 | 0.0778    | 0.0556       | 28.5%     |
+| L6H9 | 0.0778    | 0.0698       | 10.2%     |
+
+### 4.3 Entropy and Output Distribution
+Interestingly, ablating induction heads *decreased* overall output entropy (from ~4.1 to ~3.2 bits). This occurred because the model became more &#34;peaked&#34; on other likely tokens (like spaces or punctuation) that were previously being &#34;interfered with&#34; by the induction heads&#39; pull toward the pattern token.
+
+## 5. Analysis &amp; Discussion
+- **Causal Evidence**: The dramatic reduction in leakage upon ablation confirms that induction heads are the primary causal mechanism for this behavior.
+- **In-Context Learning vs. Leakage**: The same heads responsible for GPT-2&#39;s ability to learn from examples are also &#34;leaking&#34; those examples when they shouldn&#39;t. This suggests a fundamental trade-off: the more sensitive a model is to in-context patterns (better ICL), the more it may struggle to ignore those patterns when they are irrelevant.
+- **Repetition Curse**: This research supports the &#34;Induction Head Toxicity&#34; hypothesis (Wang et al., 2025), showing that IH over-activity is not just a problem for repetitive loops but also for any task requiring the suppression of local context patterns.
+
+## 6. Limitations
+- **Model Scale**: This study was limited to GPT-2 Small. Larger models with more heads might have more complex &#34;balancing&#34; mechanisms (e.g., anti-induction heads).
+- **Prompt Sensitivity**: The exact wording of the &#34;random&#34; request matters. While &#34;completely random&#34; was used, the model still heavily favored common tokens (spaces, periods).
+- **Synthetic vs. Natural**: We used synthetic patterns (`42 elephant`). Natural language leakage might be more subtle and involve semantic patterns rather than literal token copying.
+
+## 7. Conclusions &amp; Next Steps
+- **Conclusion**: Induction heads are a significant source of pattern leakage, contributing to the model&#39;s inability to generate truly random or context-independent outputs.
+- **Next Steps**: Future work should investigate whether &#34;induction-head-aware&#34; training (e.g., regularizing induction head activations in non-ICL contexts) can reduce leakage without sacrificing in-context learning capabilities.
+
+
+════════════════════════════════════════════════════════════════════════════════
+                            RESEARCH PLAN
+════════════════════════════════════════════════════════════════════════════════
+
+# Research Plan: Are Induction Heads a Large Source of Leakage?
+
+## Motivation &amp; Novelty Assessment
+
+### Why This Research Matters
+Large Language Models (LLMs) are known to struggle with generating truly random sequences and often fall into repetitive loops (the &#34;repetition curse&#34;). Understanding the mechanistic cause of this behavior is crucial for improving model reliability, reducing &#34;hallucinations&#34; (when they copy irrelevant context), and enabling better control over stochastic generation. If induction heads—the very mechanism that enables in-context learning—are also responsible for this leakage, it points to a fundamental trade-off in transformer architectures.
+
+### Gap in Existing Work
+Existing literature (Olsson et al., 2022; Edelman et al., 2024) focuses heavily on the *success* of induction heads in enabling pattern matching and ICL. While recent work (Wang et al., 2025) has introduced &#34;induction head toxicity&#34; in the context of repetition, there is limited research specifically investigating &#34;leakage&#34; in non-repetitive contexts—i.e., when a model *should* be generating random or novel tokens but is &#34;pulled&#34; towards copying existing patterns by overactive induction heads.
+
+### Our Novel Contribution
+We propose to explicitly measure the &#34;leakage&#34; effect of induction heads in a &#34;Random Interference&#34; task. Unlike standard repetition tasks, our task will present a strong pattern in the context but require a random output. We will quantify the causal link between induction head activity and the failure to generate random outputs by using mechanistic interpretability tools (TransformerLens) to ablate these heads and observe the change in output entropy and copying probability.
+
+### Experiment Justification
+- **Experiment 1: IH Identification &amp; Baseline Leakage**: Establish which heads are induction heads and measure their &#34;natural&#34; tendency to copy in random contexts.
+- **Experiment 2: Causal Ablation**: Verify if removing these heads reduces leakage and increases output randomness, proving they are the drivers of this behavior.
+- **Experiment 3: Pattern Strength Sensitivity**: Test how the &#34;pull&#34; of induction heads scales with the strength/length of the pattern in context.
+
+---
+
+## Research Question
+Do induction heads in language models cause unintended leakage of patterned information from the text, even when the model should not be copying, and does this contribute to the model&#39;s struggle to generate random outputs?
+
+## Hypothesis Decomposition
+- **H1**: Induction heads are active and produce high logits for &#34;pattern-completing&#34; tokens even when the ground truth or task context suggests randomness.
+- **H2**: Ablating induction heads significantly reduces the probability of copying from context in &#34;Random Interference&#34; tasks.
+- **H3**: The &#34;leakage&#34; effect increases with the number of repetitions of a pattern in the prompt (induction head reinforcement).
+
+## Proposed Methodology
+
+### Approach
+We will use **GPT-2 Small** (via TransformerLens) as our primary model due to its well-mapped induction heads. We will design synthetic prompts that contain an &#34;induction trigger&#34; (a repeating sequence) followed by a request for a random token.
+
+### Experimental Steps
+1. **Model &amp; Head Setup**: Load GPT-2 Small and identify induction heads using the standard &#34;induction score&#34; (matching `[A][B] ... [A]` -&gt; `[B]`).
+2. **Task Design**: Create &#34;Random Interference&#34; prompts:
+   - Example: `The sequence is 1, 2, 1, 2, 1, 2. The next random number is:`
+   - Here, `2` is the &#34;induction&#34; token, but the prompt asks for a &#34;random&#34; number.
+3. **Logit Analysis**: Measure the logit assigned to the &#34;induction token&#34; vs. other tokens.
+4. **Causal Intervention**: Perform &#34;zero-ablation&#34; on identified induction heads and measure the change in:
+   - **Copying Probability**: $P(\text{token} = B | \text{pattern } AB...A)$
+   - **Output Entropy**: $H(P) = -\sum p_i \log p_i$
+5. **Scale Study**: Vary the number of repetitions in the trigger (e.g., `1, 2` repeated 1, 2, 5, 10 times) and measure the leakage.
+
+### Baselines
+- **Random Baseline**: Uniform distribution over the token vocabulary.
+- **Unigram/Bigram Baseline**: Frequency-based prediction from the context.
+- **Ablated Model**: The same model with induction heads removed.
+
+### Evaluation Metrics
+- **Leakage Score**: The ratio of the probability of the &#34;pattern&#34; token to the average probability of non-pattern tokens.
+- **Entropy**: To measure the &#34;randomness&#34; of the output distribution.
+- **Induction Score**: To verify the heads being ablated are indeed induction heads.
+
+### Statistical Analysis Plan
+- T-tests to compare entropy and leakage scores between the base model and the ablated model.
+- Correlation analysis between IH induction scores and their individual leakage contributions.
+
+## Expected Outcomes
+- We expect to find that GPT-2 Small assigns significantly higher probability to the &#34;pattern&#34; token `2` in the example above, even when &#34;random&#34; is requested.
+- We expect that ablating the top induction heads will significantly increase the entropy of the output distribution and decrease the leakage score.
+
+## Timeline and Milestones
+- **Phase 1: Planning &amp; Setup**: 1 hour
+- **Phase 2: Data Generation &amp; Baseline**: 1 hour
+- **Phase 3: IH Identification &amp; Ablation Experiments**: 2 hours
+- **Phase 4: Analysis &amp; Visualization**: 1 hour
+- **Phase 5: Documentation**: 1 hour
+
+## Potential Challenges
+- **Identifying &#34;Leakage&#34; vs. &#34;Correct Prediction&#34;**: In natural language, patterns are often the &#34;correct&#34; next token. We must use synthetic tasks where the &#34;correct&#34; next token is explicitly *not* the pattern.
+- **Head Interactions**: Ablating one head might lead to other heads compensating. We will use group ablation of the top $N$ induction heads.
+
+## Success Criteria
+- Successful identification of induction heads in GPT-2 Small.
+- Demonstration of a statistically significant &#34;leakage&#34; effect in the Random Interference task.
+- Clear causal evidence that ablating IH reduces this leakage.
+
+
+════════════════════════════════════════════════════════════════════════════════
+                          LITERATURE REVIEW
+════════════════════════════════════════════════════════════════════════════════
+
+# Literature Review: Induction Heads and Leakage/Repetition
+
+## Research Area Overview
+Induction heads are specialized attention heads in transformer models that implement a copying mechanism to complete sequences like `[A][B] ... [A] -&gt; [B]`. While they are foundational to in-context learning (ICL), recent research suggests they can also be a source of unintended leakage and repetitive behavior, particularly when they become &#34;toxic&#34; or dominate the output logits inappropriately.
+
+## Key Papers
+
+### 1. In-context Learning and Induction Heads (Olsson et al., 2022)
+-   **Authors**: Olsson et al.
+-   **Year**: 2022
+-   **Key Contribution**: Seminal paper identifying induction heads as the primary mechanism for ICL.
+-   **Relevance to Our Research**: Foundation for understanding what induction heads are and how they operate via a two-layer copying mechanism.
+
+### 2. Induction Head Toxicity Mechanistically Explains Repetition Curse in Large Language Models (Wang et al., 2025)
+-   **Authors**: Shuxun Wang, Qingyu Yin, et al.
+-   **Year**: 2025
+-   **Key Contribution**: Introduces the concept of &#34;induction head toxicity,&#34; where these heads dominate the model&#39;s output, causing repetitive and cyclic generation.
+-   **Relevance to Our Research**: Directly supports the hypothesis that induction heads cause leakage and struggle with non-repetitive (random) generation.
+
+### 3. Understanding and Controlling Repetition Neurons and Induction Heads in In-Context Learning (2025)
+-   **Year**: 2025
+-   **Key Contribution**: Explores how repetition neurons and induction heads interact to drive ICL but also cause repetitive failures.
+-   **Relevance to Our Research**: Provides mechanisms to control or mitigate the leakage/repetition issues.
+
+### 4. Overthinking the Truth: Understanding how Language Models Process False Demonstrations (Halawi et al., 2023)
+-   **Authors**: Halawi et al.
+-   **Year**: 2023
+-   **Key Contribution**: Identifies &#34;false induction heads&#34; that attend to and copy incorrect information from demonstrations.
+-   **Relevance to Our Research**: Highlights how induction heads can leak &#34;incorrect&#34; or &#34;distractor&#34; patterns from the context.
+
+### 5. The Evolution of Statistical Induction Heads: In-Context Learning Markov Chains (Edelman et al., 2024)
+-   **Authors**: Edelman et al.
+-   **Year**: 2024
+-   **Key Contribution**: Shows that transformers learn in-context statistics (unigrams, then bigrams) before forming induction heads.
+-   **Relevance to Our Research**: Suggests that &#34;leakage&#34; might start as a statistical preference before being mechanized by induction heads.
+
+## Common Methodologies
+-   **Mechanistic Interpretability**: Using tools like path patching, activation patching, and attention map visualization to identify specific heads.
+-   **Synthetic Tasks**: Copying tasks, Markov Chain tasks, and &#34;Off-by-One&#34; addition tasks are used to isolate induction head behavior.
+-   **Head Ablation**: Causally measuring the impact of removing specific heads on the &#34;repetition curse&#34; or ICL performance.
+
+## Standard Baselines
+-   **N-gram Models**: Often used as a lower-bound for ICL performance.
+-   **Attention-Only Models**: Used to study the emergence of induction heads in isolation from MLP layers.
+-   **Llama-3.1, GPT-2, Pythia**: Standard model families for interpretability research.
+
+## Gaps and Opportunities
+-   **Randomness Evaluation**: While many papers study copying, fewer focus specifically on the model&#39;s *failure* to generate random tokens in the presence of patterns (the &#34;leakage&#34; effect).
+-   **Mitigation Strategies**: Most research focuses on understanding; more work is needed on &#34;detoxifying&#34; induction heads without breaking ICL.
+
+## Recommendations for Our Experiment
+1.  **Primary Dataset**: Use synthetic Markov Chain sequences (as in Edelman et al.) and specifically designed &#34;Random Interference&#34; tasks where a pattern exists in context but the model should generate random tokens.
+2.  **Baseline Methods**: Compare standard Transformers against those with &#34;Repetition Neurons&#34; or &#34;Toxic Head&#34; ablation.
+3.  **Evaluation Metrics**: Measure &#34;repetition score&#34; and &#34;pattern leakage&#34; (how much of the context is copied vs. original generation).
+4.  **Code to Adapt**: Use **TransformerLens** for head identification and ablation, and the **Evolution-of-Statistical-Induction-Heads** repo for data generation.
+
+
+════════════════════════════════════════════════════════════════════════════════
+                          PAPER REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+Generate a complete academic paper with the following structure:
+
+1. TITLE
+   - Clear, specific, informative
+   - Should convey main finding or contribution
+
+2. AUTHOR
+   - Use this exact author line in the \author{} block: Ari Holtzman and NeuriCo
+
+3. ABSTRACT (150-250 words)
+   - Problem statement
+   - Approach
+   - Key results
+   - Significance
+
+4. INTRODUCTION
+   - Research problem and motivation
+   - Gap in existing work
+   - Our contribution (be specific)
+   - Paper organization
+
+5. RELATED WORK
+   - Organized by theme/approach
+   - Position our work relative to prior work
+   - Cite papers from literature review
+
+6. METHODOLOGY
+   - Clear description of approach
+   - Experimental setup
+   - Datasets used
+   - Evaluation metrics
+   - Baselines
+
+7. RESULTS
+   - Present results with tables and figures
+   - Statistical analysis
+   - Comparison to baselines
+   - Ablation studies (if applicable)
+
+8. DISCUSSION
+   - Interpretation of results
+   - Limitations
+   - Broader implications
+
+9. CONCLUSION
+   - Summary of contributions
+   - Key findings
+   - Future work
+
+10. REFERENCES
+   - BibTeX format
+   - All cited papers
+
+════════════════════════════════════════════════════════════════════════════════
+                          OUTPUT FORMAT
+════════════════════════════════════════════════════════════════════════════════
+
+Create a MODULAR LaTeX project with the following directory structure:
+
+paper_draft/
+├── main.tex              # Main file that imports all sections
+├── references.bib        # BibTeX references
+├── sections/
+│   ├── abstract.tex      # Abstract content
+│   ├── introduction.tex  # Introduction section
+│   ├── related_work.tex  # Related work section
+│   ├── methodology.tex   # Methodology section
+│   ├── results.tex       # Results section
+│   ├── discussion.tex    # Discussion section
+│   └── conclusion.tex    # Conclusion section
+├── figures/              # Directory for any generated figures
+├── tables/               # Directory for complex standalone tables
+└── appendix/             # Directory for appendix sections (if needed)
+
+INSTRUCTIONS:
+1. First, create the directory structure above (mkdir -p paper_draft/sections paper_draft/figures paper_draft/tables paper_draft/appendix)
+2. Write main.tex using the EXACT preamble for NEURIPS:
+
+   \documentclass{article}
+   \usepackage[final]{neurips_2025}  % NEURIPS style (neurips_2025.sty is in paper_draft/)
+   \usepackage[hidelinks]{hyperref}  % REQUIRED: clickable links
+   \usepackage{booktabs}  % REQUIRED: professional tables
+   \usepackage{graphicx}
+   \usepackage{amsmath,amssymb}
+
+   % Import command files
+   \input{commands/math}
+   \input{commands/general}
+   \input{commands/macros}
+
+   % Use this bibliography style:
+   \bibliographystyle{plainnat}
+
+   \author{Ari Holtzman and NeuriCo}
+
+   - Use \input{sections/...} to include each section
+   - Use \bibliography{references} for references
+3. Write each section file with COMPLETE content (no placeholders)
+4. Each section file should include its \section{} command
+5. Write references.bib with all citations in BibTeX format
+6. After writing all files, compile the paper:
+   cd paper_draft && pdflatex -interaction=nonstopmode main.tex && bibtex main && pdflatex -interaction=nonstopmode main.tex && pdflatex -interaction=nonstopmode main.tex
+
+This modular structure allows humans to easily:
+- Edit individual sections without navigating a large file
+- Track changes per section
+- Reuse sections across different paper versions
+
+════════════════════════════════════════════════════════════════════════════════
+                          QUALITY REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+- Academic tone throughout
+- All claims must be supported by data from the experiment report
+- Proper citations using \cite{} commands
+- Clear figures and tables with proper captions
+- NO placeholder text - every section must have real content
+- The paper MUST compile without errors
+- If compilation fails, debug and fix the LaTeX errors
+
+════════════════════════════════════════════════════════════════════════════════
+                          LAB WRITING STYLE
+════════════════════════════════════════════════════════════════════════════════
+
+Follow these lab-specific conventions to match our paper style:
+
+1. LANGUAGE STYLE:
+   - Use active voice: "We propose", "We examine", "We focus on"
+   - Be direct and confident: "Our main question is...", "We hypothesize that..."
+   - State things clearly and simply - prefer plain language over jargon
+   - Use bold questions as paragraph organizers: {\bf what is X?}
+   - Include specific quantitative claims: "8.97% over baseline"
+   - Avoid fancy wording: "utilize" → "use", "facilitate" → "help"
+
+2. INTRODUCTION STRUCTURE:
+   - Engaging hook (get to the point quickly)
+   - Problem importance
+   - Gap identification
+   - Your approach with method figure reference
+   - Quantitative preview of results
+   - Contribution bullets (3-4 items, action verbs)
+
+3. CONTRIBUTION LISTS:
+   \begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+       \item We propose...
+       \item We conduct...
+       \item We complement...
+   \end{itemize}
+
+4. MODULAR COMMANDS STRUCTURE:
+   Command templates are pre-copied to paper_draft/commands/:
+   - math.tex: Math notation macros
+   - general.tex: Formatting macros
+   - macros.tex: Project-specific term definitions (customize this for your paper)
+
+   In main.tex, include:
+   \input{commands/math}
+   \input{commands/general}
+   \input{commands/macros}
+
+5. REFERENCE CONVENTIONS:
+   Use reference macros from math.tex:
+   - \figref{fig:name} for "figure 1" (lowercase, in-sentence)
+   - \Figref{fig:name} for "Figure 1" (capitalized, start of sentence)
+   - \secref{sec:name} for "section 2"
+
+6. TEXT FORMATTING:
+   - Use \para{Header text} for bold paragraph headers
+   - Define method/dataset names with \textsc and \xspace:
+     \newcommand{\methodname}{\textsc{MethodName}\xspace}
+
+7. TABLE FORMATTING:
+   - Use booktabs package (no vertical lines)
+   - Use \resizebox{\textwidth}{!}{...} for wide tables
+   - Use @{} to remove padding at table edges
+   - Use \cmidrule(lr){x-y} for sub-headers
+   - Use \textsc{} for dataset/method names in headers
+   - Bold best results with {\bf ...}
+
+8. FIGURE FORMATTING:
+   - Use 0.32\textwidth for 3-column subfigures
+   - Use 0.95\linewidth for full-width figures
+   - Use \input{figures/legend} for shared legends
+   - Write self-contained captions explaining key observations
+
+9. RESULTS PRESENTATION:
+   - Define \increase and \decrease for colored arrows (green up, red down)
+   - Bold best results in tables
+   - Report confidence intervals when available
+
+10. ALGORITHM STYLING:
+    - Use algpseudocode with [noend]
+    - Use \triangleright for comments
+
+11. HYPERLINKS (REQUIRED):
+    - Always use \usepackage[hidelinks]{hyperref} or with colored links
+    - All citations, section refs, figure refs, table refs must be clickable
+    - This is essential for reader navigation
+
+════════════════════════════════════════════════════════════════════════════════
+                          WORKFLOW: REVIEW AND REFLECT
+════════════════════════════════════════════════════════════════════════════════
+
+Before calling finish, you MUST complete these review steps:
+
+1. REVIEW RESOURCES (at the start):
+   - Read .gemini/skills/paper-writer/SKILL.md for detailed guidance
+   - Study templates/paper_writing/lab_style_guide.md for style conventions
+   - Browse paper_examples/ for formatting and language patterns
+
+2. SELF-REFLECTION (before finishing):
+   After writing all sections, review your work against these criteria:
+
+   LANGUAGE CHECK:
+   - [ ] Is the writing clear and jargon-free?
+   - [ ] Are claims specific with quantitative support?
+   - [ ] Is active voice used throughout?
+
+   FORMATTING CHECK:
+   - [ ] Does main.tex include \input{commands/math}, \input{commands/general}, \input{commands/macros}?
+   - [ ] Is hyperref package included for clickable references?
+   - [ ] Do tables use booktabs (no vertical lines)?
+   - [ ] Are best results bolded in tables?
+   - [ ] Are figures/tables properly captioned?
+
+   STRUCTURE CHECK:
+   - [ ] Does introduction follow: hook → importance → gap → approach → preview → contributions?
+   - [ ] Are contribution bullets specific with action verbs?
+   - [ ] Does the paper compile without errors?
+
+3. FIX ISSUES:
+   - Address any issues found in the self-reflection
+   - Re-compile and verify the PDF looks correct
+
+Only after completing this review should you consider the paper finished.

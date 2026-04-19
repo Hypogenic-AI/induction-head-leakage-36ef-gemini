@@ -1,0 +1,24 @@
+\section{Introduction}
+\label{sec:intro}
+
+The ability of Large Language Models (LLMs) to perform in-context learning (\icl) is one of their most remarkable emergent properties. Recent mechanistic interpretability research has identified \textit{\inductionheads} (\ih) as the primary circuit responsible for this capability, enabling models to implement a sophisticated $[A][B] \dots [A] \rightarrow [B]$ copying rule \cite{olsson2022context}. However, while this mechanism is essential for following demonstrations, it may also lead to unintended behaviors when the model is expected to ignore the local context or generate stochastic outputs.
+
+{\bf Why does this matter?}
+The tendency of models to fall into repetitive loops—often referred to as the "repetition curse"—and their struggle to generate truly random sequences suggests that their internal mechanisms may be "too active." If the same heads that enable \icl are also responsible for leaking patterns into contexts where they are inappropriate, it points to a fundamental architectural trade-off. Understanding this \leakage is crucial for improving model reliability and control in stochastic tasks.
+
+{\bf What is missing in existing work?}
+Prior work has focused extensively on the success of \inductionheads in enabling pattern matching \cite{olsson2022context, edelman2024evolution}. While recent studies have linked IH activity to repetition \cite{wang2025induction}, there is limited research specifically investigating the \textit{causal \leakage} of patterns in non-repetitive contexts—where the model is explicitly instructed to produce something unrelated to the context.
+
+{\bf Our approach.}
+We investigate this phenomenon using a novel \taskname task. We present \gpttwo with a strong repeating pattern and then explicitly request a "completely random and unrelated word." By measuring the probability assigned to the pattern-completing token, we quantify the \leakage effect. We then perform mechanistic interventions by zero-ablating identified induction heads to verify their causal role in this behavior.
+
+{\bf Key findings.}
+We find that the base model assigns a 7.78\% probability to the pattern token, which is approximately 3800$\times$ higher than what would be expected from a uniform random distribution. Ablating the top 5 \inductionheads reduces this \leakage to just 0.30\%, a reduction of over 95\%. We further identify head L5H1 as the primary driver of this effect, contributing to nearly 70\% of the total \leakage reduction.
+
+Our main contributions are as follows:
+\begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+    \item We define the \taskname task to measure unintended pattern \leakage in transformers.
+    \item We provide causal evidence that \inductionheads are the primary drivers of this \leakage, contributing to the model's failure to generate stochastic outputs.
+    \item We quantify the individual contributions of specific heads, identifying L5H1 as a highly "toxic" head in \gpttwo.
+    \item We demonstrate that IH ablation significantly reduces \leakage and alters the output distribution entropy, shifting the model away from induction-driven predictions.
+\end{itemize}

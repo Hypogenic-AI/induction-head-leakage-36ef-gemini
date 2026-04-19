@@ -1,0 +1,34 @@
+{
+  "created_at": "2026-04-19T22:42:15.331413",
+  "stages": {
+    "resource_finder": {
+      "status": "completed",
+      "started_at": "2026-04-19T22:42:15.331769",
+      "completed_at": "2026-04-19T22:55:11.324876",
+      "success": true,
+      "outputs": {
+        "literature_review": "/workspaces/induction-head-leakage-36ef-gemini/literature_review.md",
+        "resources_catalog": "/workspaces/induction-head-leakage-36ef-gemini/resources.md",
+        "papers_dir": "/workspaces/induction-head-leakage-36ef-gemini/papers",
+        "datasets_dir": "/workspaces/induction-head-leakage-36ef-gemini/datasets",
+        "code_dir": "/workspaces/induction-head-leakage-36ef-gemini/code"
+      }
+    },
+    "experiment_runner": {
+      "status": "completed",
+      "started_at": "2026-04-19T22:55:11.325238",
+      "completed_at": "2026-04-19T22:59:27.816104",
+      "success": true,
+      "outputs": {
+        "success": true,
+        "return_code": 0,
+        "elapsed_time": 256.4751937389374,
+        "log_file": "/workspaces/induction-head-leakage-36ef-gemini/logs/execution_gemini.log",
+        "transcript_file": "/workspaces/induction-head-leakage-36ef-gemini/logs/execution_gemini_transcript.jsonl"
+      }
+    }
+  },
+  "current_stage": null,
+  "completed": true,
+  "completed_at": "2026-04-19T22:59:27.816779"
+}
